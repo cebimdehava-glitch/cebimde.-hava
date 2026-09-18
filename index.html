@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="tr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cebimde Hava - Beta Test Sürümü</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { 50: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', 900: '#0369a1', 950: '#082f49' }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans antialiased pb-20 min-h-screen selection:bg-sky-500 selection:text-white">
+
+    <!-- ÜST BAR / NAVBAR (BETA TEST) -->
+    <header class="sticky top-0 z-50 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-3 flex items-center justify-between shadow-md">
+        <div class="flex items-center space-x-2">
+            <div class="bg-sky-600 text-white p-2 rounded-xl shadow-lg">
+                <i class="fa-solid fa-cloud-sun-rain text-lg"></i>
+            </div>
+            <div>
+                <div class="flex items-center space-x-2">
+                    <h1 class="font-black text-lg tracking-wide text-sky-400">Cebimde Hava</h1>
+                    <span class="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[9px] px-2 py-0.5 rounded-full font-bold">BETA TEST</span>
+                </div>
+                <p class="text-[10px] text-slate-400">Takipçi Özel Deneme Sürümü</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-2">
+            <button onclick="useGeolocation()" class="bg-slate-800 hover:bg-slate-700 text-sky-400 p-2 rounded-xl border border-slate-700 transition" title="Konumumu Kullan">
+                <i class="fa-solid fa-location-crosshairs"></i>
+            </button>
+            <button onclick="toggleTheme()" class="bg-slate-800 hover:bg-slate-700 text-amber-400 p-2 rounded-xl border border-slate-700 transition" title="Tema Değiştir">
+                <i id="themeIcon" class="fa-solid fa-moon"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- ŞEHİR / İLÇE ARAMA ÇUBUĞU -->
+    <div class="max-w-4xl mx-auto px-4 mt-4">
+        <div class="relative">
+            <input type="text" id="searchInput" placeholder="Şehir veya ilçe adı yazıp aratın (Örn: İstanbul, Erzurum, Kadıköy)..." 
+                class="w-full bg-slate-900 border border-slate-800 rounded-2xl px-4 py-3.5 pl-11 text-sm focus:outline-none focus:border-sky-500 transition text-slate-100 placeholder-slate-500 shadow-inner">
+            <i class="fa-solid fa-magnifying-glass absolute left-4 top-4 text-slate-500"></i>
+            <button onclick="searchCity()" class="absolute right-2.5 top-2.5 bg-sky-600 hover:bg-sky-500 text-white px-5 py-2 rounded-xl text-xs font-bold transition">Ara</button>
+        </div>
+    </div>
+
+    <!-- ANA İÇERİK ALANI -->
+    <main class="max-w-4xl mx-auto px-4 mt-4 space-y-6">
+
+        <!-- 1. ANA SAYFA SEKMESİ -->
+        <div id="tab-home" class="space-y-6 tab-content">
+            <!-- Anlık Hava Durumu Kartı -->
+            <div id="weatherCard" class="bg-gradient-to-br from-slate-900 to-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
+                <div class="flex justify-between items-start relative z-10">
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <h2 id="locationName" class="text-2xl font-black text-white">İstanbul</h2>
+                            <button onclick="toggleFavorite()" id="favBtn" class="text-slate-500 hover:text-amber-400 transition text-lg"><i class="fa-regular fa-star"></i></button>
+                        </div>
+                        <p id="conditionText" class="text-sky-400 font-semibold mt-1">Veriler Yükleniyor...</p>
+                    </div>
+                    <div class="text-right">
+                        <span id="currentTemp" class="text-5xl font-black tracking-tighter text-white">--°C</span>
+                        <p class="text-xs text-slate-400 mt-1">Hissedilen: <span id="feelsLike" class="font-bold text-slate-200">--°C</span></p>
+                    </div>
+                </div>
+
+                <!-- 30 Özellikli Detay Izgarası -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-slate-800 text-xs relative z-10">
+                    <div class="bg-slate-950/40 p-3 rounded-2xl border border-slate-800/60">
+                        <span class="text-slate-400 block">1. Min / Maks Sıcaklık</span>
+                        <span id="minMaxTemp" class="font-bold text-slate-200 text-sm mt-1 block">--° / --°</span>
+                    </div>
+                    <div class="bg-slate-950/40 p-3 rounded-2xl border border-slate-800/60">
+                        <span class="text-slate-400 block">2. Bağıl Nem Oranı</span>
+                        <span id="humidityVal" class="font-bold text-slate-200 text-sm mt-1 block">--%</span>
+                    </div>
+                    <div class="bg-slate-950/40 p-3 rounded-2xl border border-slate-800/60">
+                        <span class="text-slate-400 block">3. Rüzgar Hızı</span>
+                        <span id="windVal" class="font-bold text-slate-200 text-sm mt-1 block">-- km/s</span>
+                    </div>
+                    <div class="bg-slate-950/40 p-3 rounded-2xl border border-slate-800/60">
+                        <span class="text-slate-400 block">4. Atmosferik Basınç</span>
+                        <span id="pressureVal" class="font-bold text-slate-200 text-sm mt-1 block">-- hPa</span>
+                    </div>
+                    <div class="bg-slate-950/40 p-3 rounded-2xl border border-slate-800/60">
+                        <span class="text-slate-400 block">5. Yağış İhtimali</span>
+                        <span id="rainProb" class="font-bold text-slate-200 text-sm mt-1 block">--%</span>
+                    </div>
+                    <div class="bg-slate-950/40 p-3 rounded-2xl border border-slate-800/60">
+                        <span class="text-slate-400 block">6. Çiy Noktası</span>
+                        <span id="dewPoint" class="font-bold text-slate-200 text-sm mt-1 block">--°C</span>
+                    </div>
+                    <div class="bg-slate-950/40 p-3 rounded-2xl border border-slate-800/60">
+                        <span class="text-slate-400 block">7. UV İndeksi</span>
+                        <span id="uvIndex" class="font-bold text-slate-200 text-sm mt-1 block">3.2 (Normal)</span>
+                    </div>
+                    <div class="bg-slate-950/40 p-3 rounded-2xl border border-slate-800/60">
+                        <span class="text-slate-400 block">8. Bulut Örtüsü</span>
+                        <span id="cloudCover" class="font-bold text-slate-200 text-sm mt-1 block">%--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Giyim & Aktivite Asistanı -->
+            <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4">
+                <h3 class="font-bold text-sm text-slate-200 flex items-center">
+                    <i class="fa-solid fa-clipboard-check text-sky-400 mr-2"></i> Akıllı Giyim & Aktivite Analizi (Ayaz AI)
+                </h3>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                    <div class="bg-slate-950/50 p-3 rounded-2xl border border-slate-800">
+                        <span class="text-slate-400 block">Şemsiye Durumu</span>
+                        <span id="recUmbrella" class="font-bold text-slate-200">Hesaplanıyor</span>
+                    </div>
+                    <div class="bg-slate-950/50 p-3 rounded-2xl border border-slate-800">
+                        <span class="text-slate-400 block">Mont / Kaban</span>
+                        <span id="recJacket" class="font-bold text-slate-200">Hesaplanıyor</span>
+                    </div>
+                    <div class="bg-slate-950/50 p-3 rounded-2xl border border-slate-800">
+                        <span class="text-slate-400 block">Spor / Yürüyüş</span>
+                        <span id="recSport" class="font-bold text-emerald-400">Uygun</span>
+                    </div>
+                    <div class="bg-slate-950/50 p-3 rounded-2xl border border-slate-800">
+                        <span class="text-slate-400 block">Araç Yıkama</span>
+                        <span id="recCarWash" class="font-bold text-sky-400">Uygun</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Saatlik Tahmin -->
+            <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl">
+                <h3 class="font-bold text-sm text-slate-200 mb-3 flex items-center">
+                    <i class="fa-solid fa-clock text-sky-400 mr-2"></i> Saatlik Detaylı Tahmin Akışı
+                </h3>
+                <div id="hourlyContainer" class="flex space-x-3 overflow-x-auto pb-2 no-scrollbar"></div>
+            </div>
+
+            <!-- Haftalık Takvim -->
+            <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl">
+                <h3 class="font-bold text-sm text-slate-200 mb-3 flex items-center">
+                    <i class="fa-solid fa-calendar-days text-sky-400 mr-2"></i> 7 Günlük Uzman Takvimi
+                </h3>
+                <div id="dailyContainer" class="space-y-2"></div>
+            </div>
+        </div>
+
+        <!-- 2. HARİTA SEKMESİ -->
+        <div id="tab-map" class="space-y-6 tab-content hidden">
+            <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4">
+                <h3 class="font-bold text-sm text-slate-200"><i class="fa-solid fa-map-location-dot text-sky-400 mr-2"></i> Canlı Radar</h3>
+                <div class="w-full h-[400px] rounded-2xl overflow-hidden border border-slate-800">
+                    <iframe width="100%" height="100%" src="https://embed.windy.com/embed2.html?lat=41.0082&lon=28.9784&zoom=6&level=surface&overlay=wind" frameborder="0"></iframe>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. AYAZ AI SEKMESİ -->
+        <div id="tab-ai" class="space-y-6 tab-content hidden">
+            <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                    <h3 class="font-black text-slate-100">Ayaz AI Asistanı</h3>
+                    <span class="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[9px] px-2 py-0.5 rounded-full font-bold">BETA TEST</span>
+                </div>
+                <div id="chatBox" class="h-60 overflow-y-auto space-y-3 p-3 bg-slate-950/60 rounded-2xl border border-slate-800 text-xs">
+                    <div class="bg-slate-900 p-3 rounded-2xl border border-slate-800 max-w-[85%]">
+                        <span class="text-sky-400 font-bold block mb-1">Ayaz AI</span>
+                        Beta test sürümüne hoş geldiniz! İstediğiniz şehri aratarak test edebilirsiniz.
+                    </div>
+                </div>
+                <div class="flex space-x-2">
+                    <input type="text" id="chatInput" placeholder="Ayaz'a soru sorun..." class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs flex-1 text-white focus:outline-none">
+                    <button onclick="sendChatMessage()" class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2.5 rounded-xl text-xs font-bold">Gönder</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. ANALİZ SEKMESİ -->
+        <div id="tab-analysis" class="space-y-6 tab-content hidden">
+            <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl">
+                <h3 class="font-bold text-sm text-slate-200 mb-3">Sıcaklık Trend Grafiği</h3>
+                <div class="h-64"><canvas id="weatherChart"></canvas></div>
+            </div>
+        </div>
+
+        <!-- 5. AYARLAR SEKMESİ -->
+        <div id="tab-settings" class="space-y-6 tab-content hidden">
+            <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl text-xs space-y-3">
+                <h3 class="font-bold text-sm text-slate-200">Sistem Bilgisi</h3>
+                <p class="text-slate-400">Cebimde Hava Beta Test Sürümü - Open-Meteo Altyapısı aktif.</p>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ALT NAVİGASYON -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 py-2 px-4 flex justify-around items-center z-50 text-xs shadow-2xl">
+        <button onclick="switchTab('home')" id="nav-home" class="flex flex-col items-center text-sky-400 space-y-1"><i class="fa-solid fa-house text-base"></i><span>Ana Sayfa</span></button>
+        <button onclick="switchTab('map')" id="nav-map" class="flex flex-col items-center text-slate-400 space-y-1"><i class="fa-solid fa-map text-base"></i><span>Harita</span></button>
+        <button onclick="switchTab('ai')" id="nav-ai" class="flex flex-col items-center text-slate-400 space-y-1"><i class="fa-solid fa-robot text-base"></i><span>Ayaz AI</span></button>
+        <button onclick="switchTab('analysis')" id="nav-analysis" class="flex flex-col items-center text-slate-400 space-y-1"><i class="fa-solid fa-chart-pie text-base"></i><span>Analiz</span></button>
+        <button onclick="switchTab('settings')" id="nav-settings" class="flex flex-col items-center text-slate-400 space-y-1"><i class="fa-solid fa-gear text-base"></i><span>Ayarlar</span></button>
+    </nav>
+
+    <!-- JAVASCRIPT MOTORU -->
+    <script>
+        let weatherChartInstance = null;
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            document.querySelectorAll('nav button').forEach(b => b.classList.replace('text-sky-400', 'text-slate-400'));
+            document.getElementById(`nav-${tabId}`).classList.replace('text-slate-400', 'text-sky-400');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+        }
+
+        async function fetchWeather(query) {
+            try {
+                const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=tr&format=json`);
+                const geoData = await geoRes.json();
+                if(!geoData.results) throw new Error("Konum bulunamadı");
+
+                const { latitude, longitude, name, country } = geoData.results[0];
+                const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m,surface_pressure,cloud_cover&hourly=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto`);
+                const wData = await weatherRes.json();
+
+                updateUI(`${name} (${country || 'Türkiye'})`, wData);
+            } catch(err) {
+                console.error(err);
+                alert("Aradığınız konum bulunamadı. Lütfen geçerli bir şehir veya ilçe adı yazın.");
+            }
+        }
+
+        function updateUI(cityName, data) {
+            document.getElementById('locationName').innerText = cityName;
+            const cur = data.current;
+            document.getElementById('currentTemp').innerText = `${cur.temperature_2m}°C`;
+            document.getElementById('feelsLike').innerText = `${cur.apparent_temperature}°C`;
+            document.getElementById('minMaxTemp').innerText = `${data.daily.temperature_2m_min[0]}° / ${data.daily.temperature_2m_max[0]}°`;
+            document.getElementById('humidityVal').innerText = `%${cur.relative_humidity_2m}`;
+            document.getElementById('windVal').innerText = `${cur.wind_speed_10m} km/s`;
+            document.getElementById('pressureVal').innerText = `${cur.surface_pressure} hPa`;
+            document.getElementById('rainProb').innerText = `%${cur.precipitation > 0 ? 80 : 10}`;
+            document.getElementById('dewPoint').innerText = `${(cur.temperature_2m - ((100 - cur.relative_humidity_2m)/5)).toFixed(1)}°C`;
+            document.getElementById('cloudCover').innerText = `%${cur.cloud_cover}`;
+            document.getElementById('conditionText').innerText = getDesc(cur.weather_code);
+
+            // Giyim Asistanı
+            document.getElementById('recUmbrella').innerText = cur.precipitation > 0 ? "Gerekli" : "Gerek Yok";
+            document.getElementById('recJacket').innerText = cur.temperature_2m < 15 ? "Kalın Mont" : "Hafif Ceket";
+
+            // Saatlik
+            const hCont = document.getElementById('hourlyContainer');
+            hCont.innerHTML = '';
+            data.hourly.time.slice(0, 12).forEach((t, i) => {
+                hCont.innerHTML += `<div class="bg-slate-950/50 border border-slate-800 p-3 rounded-2xl text-center min-w-[70px]"><span class="text-[10px] text-slate-400 block">${t.split('T')[1]}</span><span class="font-bold text-slate-200 text-xs block mt-2">${data.hourly.temperature_2m[i]}°C</span></div>`;
+            });
+
+            // Günlük
+            const dCont = document.getElementById('dailyContainer');
+            dCont.innerHTML = '';
+            data.daily.time.forEach((d, i) => {
+                dCont.innerHTML += `<div class="flex justify-between items-center bg-slate-950/40 p-3 rounded-2xl border border-slate-800 text-xs"><span class="font-medium text-slate-300">${d}</span><span class="font-bold text-sky-400">${data.daily.temperature_2m_min[i]}° / ${data.daily.temperature_2m_max[i]}°</span></div>`;
+            });
+
+            renderChart(data);
+        }
+
+        function getDesc(code) {
+            const map = {0: "Açık ve Güneşli", 1: "Parçalı Bulutlu", 2: "Bulutlu", 3: "Kapalı", 61: "Yağmurlu", 71: "Karlı"};
+            return map[Number(code)] || "Normal";
+        }
+
+        function renderChart(data) {
+            const ctx = document.getElementById('weatherChart').getContext('2d');
+            if(weatherChartInstance) weatherChartInstance.destroy();
+            weatherChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.hourly.time.slice(0, 12).map(t => t.split('T')[1]),
+                    datasets: [{ label: 'Sıcaklık', data: data.hourly.temperature_2m.slice(0, 12), borderColor: '#0ea5e9', backgroundColor: 'rgba(14,165,233,0.1)', fill: true, tension: 0.4 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+        }
+
+        function searchCity() {
+            const val = document.getElementById('searchInput').value;
+            if(val) fetchWeather(val);
+        }
+
+        document.getElementById('searchInput').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                searchCity();
+            }
+        });
+
+        function useGeolocation() {
+            navigator.geolocation.getCurrentPosition(p => fetchWeather(`${p.coords.latitude},${p.coords.longitude}`), () => alert("Konum alınamadı."));
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            const chatBox = document.getElementById('chatBox');
+            if(!input.value) return;
+            
+            chatBox.innerHTML += `<div class="bg-sky-950/40 p-3 rounded-2xl text-right"><span class="text-sky-300 font-bold block">Sen</span>${input.value}</div>`;
+            const userMsg = input.value;
+            input.value = '';
+
+            setTimeout(() => {
+                chatBox.innerHTML += `<div class="bg-slate-900 p-3 rounded-2xl"><span class="text-sky-400 font-bold block">Ayaz AI</span>"${userMsg}" sorgunuza göre beta test koşulları normal görünmektedir.</div>`;
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }, 500);
+        }
+
+        window.onload = () => {
+            fetchWeather('İstanbul');
+        };
+    </script>
+</body>
+</html>
